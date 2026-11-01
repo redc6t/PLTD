@@ -140,7 +140,7 @@ Current session, % of the NAND used, and a download link per session (`GET /log?
 
 ### IMU Orientation
 
-Roll, pitch and yaw trim. **Level Now** (`POST /imu/level`) captures roll and pitch from gravity; the car must be still and level. The **yaw offset** is entered by hand (`POST /imu/yaw`). When two consecutive laps agree, a GPS-learned **Suggested yaw** appears with an **Apply** button. It is never applied automatically.
+Orientation, roll, pitch and yaw trim. **Level Now** (`POST /imu/level`) captures roll and pitch from gravity; the car must be still and level. From v0.19.0 it also detects a unit installed upside down: it flips the orientation (display and IMU together), saves the trim, reboots, and the card follows the reboot. The **Unit orientation** selector (`POST /imu/orient`) sets it by hand as a bench fallback. The **yaw offset** is entered by hand (`POST /imu/yaw`). When two consecutive laps agree, a GPS-learned **Suggested yaw** appears with an **Apply** button. It is never applied automatically.
 
 ### Firmware (OTA)
 

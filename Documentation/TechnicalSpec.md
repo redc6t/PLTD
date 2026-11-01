@@ -21,7 +21,7 @@ Sources: [schematic](../Hardware/PCB/Schematic/PLTD_v1.1_Schematics.pdf) and [bo
 | Comms | Wi-Fi STA (HTTP + WebSocket), USB-C (USB 2.0 full-speed device), CAN (fitted, disabled) |
 | Supply | Vehicle supply `RAW_BATT` via interface connector, buck to 3.3 V |
 | PCB | 90 × 30 mm, 1.6 mm, chamfered corners, two plated mounting holes |
-| Mounting | Dash, board vertical, display facing the driver, pin 1 up (`MOUNT_DASH_VERTICAL`) |
+| Mounting | Dash, board vertical, display facing the driver (`MOUNT_DASH_VERTICAL`). Pin 1 up (NORMAL) or the whole unit upside down (INVERTED, fw v0.19.0) |
 
 ## 2. Block diagram
 
@@ -54,7 +54,7 @@ flowchart LR
 | USB-C | J4 on the left short edge |
 | Enclosure | Onshape, `Hardware/Enclosure/` (not yet exported) |
 
-The IMU axis remap in firmware assumes the board is mounted vertically with the display facing the driver. A boot check warns `IMU MOUNT? vert …G` when the averaged vertical axis reads under 0.5 g.
+The IMU axis remap in firmware assumes the board is mounted vertically with the display facing the driver. From fw v0.19.0 the unit can also be installed upside down (INVERTED): the display rotates 180° and the IMU signs follow, and Level Now detects and saves which way up it is. A boot check warns `IMU FLIPPED? HOLD OK 10s TO RELEARN` when the averaged vertical axis reads below −0.5 g, and `IMU MOUNT? vert …G` when it reads between −0.5 and 0.5 g.
 
 ## 4. Power
 
@@ -189,7 +189,8 @@ Measured rate and worst inter-epoch gap are recomputed every 10 s and shown on d
 | Interrupts | INT1, INT2 not connected (polled) |
 | Aux / QVAR | SDx, SCx, OCS_AUX, SDO_AUX not connected |
 | Decoupling | C8 100 nF |
-| Axis remap | `MOUNT_DASH_VERTICAL`: forward = +Z, left = +Y, up = −X, yaw rate = −gX |
+| Axis remap | `MOUNT_DASH_VERTICAL`: forward = +Z, left = +Y, up = −X, yaw rate = −gX. INVERTED (v0.19.0): forward = +Z, left = −Y, up = +X, yaw rate = +gX |
+| Orientation | v0.19.0. NORMAL / INVERTED in NVS `lt_imu` key `orient`, read before the TFT starts. Level Now flips it when the vertical mean is below −0.5 g, then saves the trim and reboots (only in `LAP_IDLE` and at ≤ 5 km/h) |
 | Levelling | 200-sample (~1 s) average, accepted when mean |a| is 0.85–1.15 g and SD ≤ 0.05 g. Roll and pitch trim and yaw offset stored in NVS `lt_imu` |
 | Event filter | IIR, α = 0.25, on longitudinal and lateral g |
 
@@ -213,7 +214,7 @@ CSV columns: `iTOW, lat_deg, lon_deg, speed_kph, sats, pdop, fix, along_g, lat_g
 
 | Item | Value |
 |---|---|
-| Resolution | 284 × 76 px, driven as `tft.init(76, 284)`, rotation 3, no inversion |
+| Resolution | 284 × 76 px, driven as `tft.init(76, 284)`, rotation 3 (NORMAL) or 1 (INVERTED, v0.19.0), no inversion |
 | Interface | HSPI write-only: SCK 5, SDI 6, CS 14, DC 21, RST 47 |
 | Connector | 8-pin header: 1 GND, 2 VIN 3V3, 3 SCK, 4 SDI, 5 RST, 6 DC, 7 CS, 8 LED |
 | Backlight | LED pin tied to GND on a stock v1.1 (always full on). With the mod below, fw v0.18.0 dims it 10–100 % from the web UI |

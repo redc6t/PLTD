@@ -41,7 +41,7 @@ The queue holds 4 messages. When it is full the oldest unlatched message is repl
 | `GET /pitstate` | `{"t":"flagstate",yellow,sc,red}` |
 | `GET /geo/list` | `{"<circuit>":[zones…],…}` every stored circuit |
 | `GET /wifi` | `{ssid,connected,ip,ip_mode,rssi,from_nvs}` |
-| `GET /imu` | `{roll,pitch,yaw,busy,mount,suggest,conf,n}` degrees |
+| `GET /imu` | `{roll,pitch,yaw,busy,mount,orient,flip,level,suggest,conf,n}` degrees. v0.19.0: `orient` is `NORMAL` or `INVERTED`; `flip` is true while an orientation reboot is pending; `level` is the last Level Now outcome (0 none or running, 1 ok, 2 failed, 3 flipped and rebooting, 4 flip blocked) |
 | `GET /thr` | `{brake,corner,accel,mindur}` |
 | `GET /brightness` | `{available,level,min,pin}`. v0.18.0. `available` is false on a board without the backlight mod. `?level=N` sets N (clamped 10–100) and saves it |
 | `GET /logs` | `{cur,full,used_pages,total_pages,sessions:[{id,bytes}]}` |
@@ -61,7 +61,8 @@ All JSON bodies; replies are `{"ok":true}` or `{"ok":false,"error":…}`.
 | `POST /nuke` | `{confirm:"ERASE",sf:bool}` | Learned-state reset |
 | `POST /thr` | `{brake,corner,accel,mindur}` | Thresholds (0.05–2.0 g, 50–3000 ms) |
 | `POST /brightness` | `{level,save}` | v0.18.0. Backlight 10–100 % (clamped). `save:false` is a live preview with no NVS write; `save` defaults to true. Replies with the `GET /brightness` JSON, or 400 `{"ok":false,"error":"parse"}` |
-| `POST /imu/level` | – | Capture roll/pitch from gravity (409 if busy) |
+| `POST /imu/level` | – | Capture roll/pitch from gravity (409 if busy). v0.19.0: if the unit reads upside down it flips the orientation, saves the trim and reboots (only in `LAP_IDLE` and at ≤ 5 km/h) |
+| `POST /imu/orient` | `{orient:"normal"\|"inverted"}` | v0.19.0. Set the orientation by hand and reboot. Keeps the trim; run Level Now afterwards. 409 `lap in progress`, `vehicle moving` or `rebooting` |
 | `POST /imu/yaw` | `{yaw}` | Yaw offset, −180…180° |
 | `POST /wifi` | `{ssid,pass}` | Save credentials to NVS and reconnect |
 | `POST /wifi/clear` | – | Revert to compiled credentials and reconnect |

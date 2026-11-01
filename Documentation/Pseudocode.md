@@ -41,7 +41,8 @@ setup():
     spiSensor.begin(FSPI: SCK40 MISO41 MOSI38)          // IMU only
     spiDisplay.begin(HSPI: SCK5 MISO7 MOSI6)            // TFT + NAND share this bus
 
-    tft.init(76, 284); rotation 3; invert off; delay 120ms   // order is load-bearing
+    imuOrientLoad()                                     // v0.19.0: NORMAL/INVERTED from NVS "lt_imu"
+    tft.init(76, 284); rotation 3 (NORMAL) or 1 (INVERTED); invert off; delay 120ms   // order is load-bearing
     draw boot splash: "LapTimer v0.17.0", "booting..."
 
     if UP held:  runUsbExportMode()                     // never returns (§14)
@@ -51,7 +52,9 @@ setup():
     imuLevelLoad()                                      // roll/pitch/yaw trim from NVS "lt_imu"
     thrLoad()                                           // detection thresholds from NVS "lt_thr"
     if g_imu_ok and not imuCheckUpright(az):
-        boot line "IMU MOUNT? vert …G"; sysLogEvent(IMU, WARN)
+        if az < −0.5:  boot line "IMU FLIPPED? HOLD OK 10s TO RELEARN"   // v0.19.0, never auto-flipped
+        else:          boot line "IMU MOUNT? vert …G"
+        sysLogEvent(IMU, WARN)
 
     // --- reference traces (PSRAM double buffer, 2 × 4500 × 12 B) ---
     a ← ps_malloc(...); b ← ps_malloc(...)
@@ -204,6 +207,8 @@ imuReadData():
     convert: accel × 0.004788 m/s² per LSB, gyro × 0.070 dps per LSB
     // 1. structural remap, IMU_MOUNT = MOUNT_DASH_VERTICAL (board vertical, face forward, pin 1 up)
     fwd ← +Z, left ← +Y, up ← −X, yaw rate ← −gX
+    // 1b. v0.19.0 orientation: INVERTED = unit rolled 180° about forward
+    if g_imuOrient = INVERTED:  left ← −left; up ← −up; yaw rate ← −yaw rate
     publish raw vehicle-frame triple for the levelling accumulator
     // 2. gravity trim (roll then pitch, from NVS)   3. yaw offset (manual, from NVS)
     rotate (fwd, left, up) by roll, pitch, yaw
@@ -218,6 +223,12 @@ imuTask():  every IMU_POLL_PERIOD_MS (5 ms)
         accumulate raw triple, |a|, |a|²
         after IMU_LEVEL_SAMPLES (200, ≈1 s):
             mean |a| in 0.85..1.15 g and sd ≤ 0.05 g ?
+              yes and az < −0.5 g:  // v0.19.0: installed the other way up
+                   pending roll ← atan2(−ay, −az); pending pitch ← atan2(−ax, √(ay²+az²))
+                   result ← FLIP (lapTask decides: LAP_IDLE and ≤ 5 km/h ?
+                     yes: save orientation + trim, toast "ORIENTATION / FLIPPED - REBOOTING",
+                          loop() commits the NAND page and restarts after 2.5 s
+                     no:  toast "ORIENT FLIP / BLOCKED - STOP CAR", nothing saved)
               yes: roll ← atan2(ay, az); pitch ← atan2(−ax, √(ay²+az²))
                    save NVS, reset IIR, result ← OK (toast "IMU RESET / SUCCESSFULLY")
               no:  result ← FAIL (toast "IMU RESET / FAILED - HOLD STILL")
@@ -642,7 +653,7 @@ every element dirty-checked so the SPI bus stays quiet while Update.write() runs
 |---|---|
 | 1/5 FIRMWARE | version, free heap, free PSRAM, trace DUAL/SINGLE, flash size |
 | 2/5 GNSS | baud, requested vs actual rate, Hz OK/BELOW TARGET, measured Hz and worst gap, band plan |
-| 3/5 IMU | mount preset, roll/pitch trim, yaw offset, vertical g check, thresholds |
+| 3/5 IMU | mount preset and orientation, roll/pitch trim, yaw offset, vertical g check, thresholds |
 | 4/5 STORE | session id, pages used/total, % used, sessions stored, armed circuit and S/F type |
 | 5/5 WIFI | SSID, state, IP, RSSI, "OK to exit" |
 
